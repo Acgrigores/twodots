@@ -2,30 +2,39 @@ from PIL import Image, ImageDraw
 import random
 import math
 
-def display(pointOne, pointTwo, pastPointOne, pastPointTwo):
+IMAGES = []
+NUM_POINTS = 10
+image = Image.open("map.jpg")
+WIDTH, HEIGHT = image.size
+WORKING_POINTS = []
+CORRESPONDING_COLORS = []
+PREV_POINTS = []
+WEIGHT = 1
+
+def display():
     image = Image.open("map.jpg")
     draw = ImageDraw.Draw(image)
-    draw.circle(pointOne, radius=10, fill="purple")
-    draw.circle(pointTwo, radius=10, fill="blue")
-    draw.line([pastPointOne, pointOne], fill = "purple")
-    draw.line([pastPointTwo, pointTwo], fill = "blue")
+    for i in range(NUM_POINTS):
+        draw.circle(WORKING_POINTS[i], radius=10, fill=CORRESPONDING_COLORS[i])
+        draw.line([WORKING_POINTS[i], PREV_POINTS[i]], fill = CORRESPONDING_COLORS[i])
     image.save("image_with_dot.jpg")
     IMAGES.append(image)
 
-def displayFirst(pointOne, pointTwo):
+def displayFirst():
     image = Image.open("map.jpg")
     draw = ImageDraw.Draw(image)
-    draw.circle(pointOne, radius=10, fill="purple")
-    draw.circle(pointTwo, radius=10, fill="blue")
+    for i in range(NUM_POINTS):
+        draw.circle(WORKING_POINTS[i], radius=10, fill=CORRESPONDING_COLORS[i])
     image.save("image_with_dot.jpg")
     IMAGES.append(image)
 
-def closeness(pointOne, pointTwo):
-    x1, y1 = pointOne
-    x2, y2 = pointTwo
-    xDiff = min(abs(x1 - x2), abs(WIDTH - x1 + x2), abs(WIDTH - x2 + x1))
-    yDiff = min(abs(y1 - y2), abs(HEIGHT - y1 + y2), abs(HEIGHT - y2 + y1))
-    return xDiff**2+yDiff**2
+def closeness(points):
+    total = 0
+    for i in range(NUM_POINTS):
+        for j in range(i + 1, NUM_POINTS):
+            dist = math.dist(points[i], points[j])
+            total += dist
+    return total
 
 def add(original, toAdd):
     x = original[0] + toAdd[0] - HEIGHT * math.floor((original[0] + toAdd[0])/HEIGHT)
@@ -37,22 +46,31 @@ def randX():
 def randY():
     return random.randint(-HEIGHT, HEIGHT) * WEIGHT
 
-image = Image.open("map.jpg")
-IMAGES = []
-WIDTH, HEIGHT = image.size
-P1 = (random.randint(0, WIDTH), random.randint(0, HEIGHT))
-P2 = (random.randint(0, WIDTH), random.randint(0, HEIGHT))
-prev1 = P1
-prev2 = P2
-displayFirst(P1, P2)
-WEIGHT = 1
-for i in range(300):
-    closest = closeness(P1, P2)
-    attempt_p1 = add((P1), (randX(), randY()))
-    attempt_p2 = add((P2), (randX(), randY()))
-    if(closeness(attempt_p1, attempt_p2) < closest):
-        display(attempt_p1, attempt_p2, P1, P2)
-        P1 = attempt_p1
-        P2 = attempt_p2
-    WEIGHT = WEIGHT * 0.97
-IMAGES[0].save('map.gif', save_all=True, append_images=IMAGES[1:], duration=300, loop=0)
+def defineWorkingPoints():
+    for point in range(NUM_POINTS):
+        P1 = (random.randint(0, WIDTH), random.randint(0, HEIGHT))
+        WORKING_POINTS.append(P1)
+        r = random.randint(0, 150)
+        g = random.randint(0, 150)
+        b = random.randint(0, 150)
+        CORRESPONDING_COLORS.append((r, g, b))
+def copyWorkingToPrev():
+    global PREV_POINTS
+    PREV_POINTS = []
+    for i in range(NUM_POINTS):
+        PREV_POINTS.append(WORKING_POINTS[i])
+
+defineWorkingPoints()
+copyWorkingToPrev()
+displayFirst()
+while closeness(WORKING_POINTS) > 350 * NUM_POINTS:
+    closest = closeness(WORKING_POINTS)
+    attempt_points = []
+    for i in range(NUM_POINTS):
+        attempt_points.append(add(WORKING_POINTS[i], (randX(), randY())))
+    if(closeness(attempt_points) < closest):
+        WORKING_POINTS = attempt_points.copy()
+        copyWorkingToPrev()
+        display()
+    WEIGHT = max(WEIGHT * 0.97, 0.05)
+IMAGES[0].save('map.gif', save_all=True, append_images=IMAGES[1:], duration=100, loop=0)
